@@ -1,6 +1,11 @@
 """pheno-auto: patient-level phenotype extraction from sectioned case reports.
 
-Pipeline (input: a folder written by 02_prepare_sections.py, with index.tsv and the section texts)
+Input
+  pheno-auto prepare-sections --articles DIR --out DIR --supplementary
+                                               articles (JATS XML + supplementary files) -> sections
+                                               folder: index.tsv + one text per section/table
+
+Pipeline (input: the sections folder)
 
   pheno-auto run --sections DIR --out DIR      every step below, in order
   pheno-auto extract-text   ...                LLM: findings of the running text   (extract_findings.py)
@@ -34,6 +39,7 @@ VIEWER = os.path.join(HERE, "viewer", "patient_phenotype_review.html")
 LINKER = os.path.join(STEPS_DIR, "belink_linker.py")
 
 STEPS = {                       # command -> script in steps/
+    "prepare-sections": "prepare_sections.py",
     "extract-text": "extract_findings.py",
     "extract-tables": "extract_table_findings.py",
     "concat": "concat_predictions.py",
@@ -90,7 +96,7 @@ def cmd_run(argv: list[str]) -> int:
                     "merge, review-zip. A step whose output exists is resumed (sections already answered "
                     "are not asked again).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    ap.add_argument("--sections", required=True, help="folder from 02_prepare_sections.py (index.tsv + texts)")
+    ap.add_argument("--sections", required=True, help="folder from `pheno-auto prepare-sections` (index.tsv + texts)")
     ap.add_argument("--out", required=True, help="run folder: text/, tables/, both/, review.zip")
     ap.add_argument("--hpo-dir", help="folder from `pheno-auto prepare-hpo` (hp.obo and index/)")
     ap.add_argument("--hpo", help="hp.obo (default: <hpo-dir>/hp.obo)")
@@ -116,7 +122,7 @@ def cmd_run(argv: list[str]) -> int:
     if bad:
         ap.error(f"unknown steps {bad}; choose from {RUN_STEPS}")
     if not os.path.exists(os.path.join(a.sections, "index.tsv")):
-        ap.error(f"{a.sections} has no index.tsv: pass a folder written by 02_prepare_sections.py")
+        ap.error(f"{a.sections} has no index.tsv: pass a folder written by `pheno-auto prepare-sections`")
     hpo = a.hpo or (a.hpo_dir and os.path.join(a.hpo_dir, "hp.obo"))
     index = a.belink_index or (a.hpo_dir and os.path.join(a.hpo_dir, "index"))
     if {"text", "tables"} & set(steps) and not (hpo and os.path.exists(hpo)):
