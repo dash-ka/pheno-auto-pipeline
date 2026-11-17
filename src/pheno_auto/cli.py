@@ -109,6 +109,8 @@ def cmd_run(argv: list[str]) -> int:
     ap.add_argument("--temperature", default="0")
     ap.add_argument("--max-tokens", type=int, default=16384, help="answer cap for text sections and merging")
     ap.add_argument("--table-max-tokens", type=int, default=32768, help="answer cap for tables")
+    ap.add_argument("--table-max-chars", type=int, default=12000,
+                    help="a longer table is sent in blocks of rows, each with its caption and header")
     ap.add_argument("--reasoning-effort", choices=["low", "medium", "high"])
     ap.add_argument("--belink-gpu", help="CUDA_VISIBLE_DEVICES for BeLink, e.g. 1 when vLLM holds GPU 0")
     ap.add_argument("--belink-adapter", default="Dash00/qwen3-4b-lora-hpo-reranker")
@@ -143,7 +145,8 @@ def cmd_run(argv: list[str]) -> int:
                                  *llm, "--workers", str(a.workers), "--max-tokens", str(a.max_tokens), *sel])
         elif step == "tables":
             sub("extract-tables", ["--sections", a.sections, "--hpo", hpo, "--out", os.path.join(out, "tables"),
-                                   *llm, "--workers", str(a.workers), "--max-tokens", str(a.table_max_tokens), *sel])
+                                   *llm, "--workers", str(a.workers), "--max-tokens", str(a.table_max_tokens),
+                                   "--max-chars", str(a.table_max_chars), *sel])
         elif step == "concat":
             parts = [os.path.join(out, d, "predictions.tsv") for d in ("text", "tables")]
             parts = [p for p in parts if os.path.exists(p)]
