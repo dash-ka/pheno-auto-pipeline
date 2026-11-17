@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pheno-auto-pipeline"
+version = "0.2.0"
+description = "Patient-level HPO phenotype extraction from case reports: LLM extraction of text and tables, BeLink grounding, LLM patient merging, review app"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Darya Shlyk" }]
+dependencies = [
+    # BeLink: SapBERT retrieval + Qwen3-4B LoRA re-ranker (brings torch, transformers, peft, accelerate)
+    "belink-hpo @ git+https://github.com/dash-ka/BeLink-HPO.git",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+pheno-auto = "pheno_auto.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Dash00/pheno-auto-pipeline"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pheno_auto = ["steps/*.py", "viewer/*.html"]
