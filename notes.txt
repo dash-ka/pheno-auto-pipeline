@@ -1,0 +1,105 @@
+# INSTALLS
+python3 -m venv ~/envs/pheno-auto
+source ~/envs/pheno-auto/bin/activate
+pip install --upgrade pip
+pip install "git+https://github.com/Dash00/pheno-auto-pipeline.git"
+pheno-auto help                              # lists the commands: the install worked
+pheno-auto vllm-install --env ~/envs/vllm    # the vLLM environment; takes a while
+
+5. Unpack your data and HPO on the new server.
+This reuses run50’s exact HPO and index. If the index is missing, pheno-auto prepare-hpo --out ~/hpo --obo ~/hpo/hp.obo rebuilds it from the same hp.obo.
+
+mkdir -p ~/data ~/hpo
+tar -xzf ~/backup/sections50.tar.gz -C ~/data
+cp ~/backup/hp.obo ~/hpo/
+tar -xzf ~/backup/belink_index.tar.gz -C ~/hpo    # gives ~/hpo/index
+ls ~/data/sections50/index.tsv ~/hpo/hp.obo ~/hpo/index
+
+One thing in what you ran: you activated pheno-auto right before vllm serve, but vLLM is installed in ~/vllm-env, not in pheno-auto. Run the server from the vLLM environment, in either of these two ways:
+
+Directly (as you did before):
+
+bash
+tmux new -s vllm
+source ~/vllm-env/bin/activate
+CUDA_VISIBLE_DEVICES=0 vllm serve openai/gpt-oss-120b --served-model-name gpt-oss-120b \
+    --max-model-len 32768 --gpu-memory-utilization 0.92 --port 8001 \
+    --override-generation-config '{"max_new_tokens": 16384}'
+
+Or through the package, from the pheno-auto environment:
+
+pheno-auto vllm-serve --env ~/vllm-env --gpu 0 --port 8001 --max-model-len 32768 --answer-cap 16384
+
+Wait until it says the server is running, then detach with Ctrl-b d.
+Point the pipeline at port 8001. The pipeline expects 8000 by default, so in the other terminal:
+
+source ~/envs/pheno-auto/bin/activate
+pheno-auto run --sections ~/data/sections50 --hpo-dir ~/hpo --out ~/runs/test \
+    --pmids ~/data/test2.txt --gold ~/data/sections50/gold50.tsv \
+    --base-url http://localhost:8001/v1 --belink-gpu 1
+
+To check the server first: curl http://localhost:8001/v1/models should list gpt-oss-120b.
+
+These are the run50 server settings (32k context, answers capped at 16,384 tokens), which keeps new results comparable with run50. For long tables you could later try --max-model-len 65536 without the --override-generation-config line.
+  
+
+A. Check the inputs (once)
+source ~/envs/pheno-auto/bin/activate
+pheno-auto help >/dev/null && echo "package ok"
+ls ~/data/sections50/index.tsv ~/data/sections50/pmids50.txt ~/data/sections50/gold50.tsv
+ls ~/hpo/hp.obo ~/hpo/index/hpo_vec.npy ~/hpo/index/ontology_mapping.txt ~/hpo/index/preferred_names.json
+grep -m1 data-version ~/hpo/hp.obo
+nvidia-smi --query-gpu=index,name,memory.used,memory.total --format=csv
+
+  
+B. Terminal 1: the LLM server (run50 settings) 
+tmux new -s vllm # already had correct vllm installed and gpt-oss-120b downloaded
+source ~/vllm-env/bin/activate
+CUDA_VISIBLE_DEVICES=0 vllm serve openai/gpt-oss-120b --served-model-name gpt-oss-120b \
+    --max-model-len 32768 --gpu-memory-utilization 0.92 --port 8001 \
+    --override-generation-config '{"max_new_tokens": 16384}'
+
+# For tables increase the max number of tokens:
+(vllm-env) darya-s@serubu03:~/vllm-env$ vllm serve openai/gpt-oss-120b --served-model-name gpt-oss-120b \ --max-model-len 65536 --gpu-memory-utilization 0.92 --port 8001
+  
+
+C. Terminal 2: the pipeline
+bash
+tmux new -s run
+source ~/envs/pheno-auto/bin/activate
+curl -s http://localhost:8001/v1/models | grep -o gpt-oss-120b && echo "server ok"
+
+S=$HOME/data/sections50
+H=$HOME/hpo
+O=$HOME/runs/run50-rerun
+URL=http://localhost:8001/v1
+mkdir -p $O
+
+# 1. text sections
+pheno-auto extract-text --sections $S --hpo $H/hp.obo --out $O/text \
+    --model gpt-oss-120b --base-url $URL --pmids $S/pmids50.txt --workers 4 --temperature 0 \
+    2>&1 | tee $O/1_text.log
+
+# 2. tables
+pheno-auto extract-tables --sections $S --hpo $H/hp.obo --out $O/tables \
+    --model gpt-oss-120b --base-url $URL --pmids $S/pmids50.txt --workers 4 --temperature 0 \
+    --max-tokens 32768 2>&1 | tee $O/2_tables.log
+
+# 3. text + tables
+pheno-auto concat $O/text/predictions.tsv $O/tables/predictions.tsv $O/both/predictions.tsv \
+    2>&1 | tee $O/3_concat.log
+
+# 4. BeLink, on GPU 1
+CUDA_VISIBLE_DEVICES=1 BELINK_INDEX=$H/index BELINK_LOG=$O/both/predictions_belink.candidates.jsonl \
+pheno-auto relink --pred $O/both/predictions.tsv --mode all \
+    --term-mention-kinds table,suppl_table --out $O/both/predictions_belink.tsv \
+    2>&1 | tee $O/4_relink.log
+
+# 5. one name per patient
+pheno-auto merge --pred $O/both/predictions_belink.tsv --out $O/both/predictions_merged_llm.tsv \
+    --model gpt-oss-120b --base-url $URL 2>&1 | tee $O/5_merge.log
+
+# 6. review zip
+pheno-auto review-zip --pred $O/both/predictions_merged_llm.tsv \
+    --candidates $O/both/predictions_belink.candidates.jsonl \
+    --gold $S/gold50.tsv --sections $S --out $O/review.zip 2>&1 | tee $O/6_review.log
