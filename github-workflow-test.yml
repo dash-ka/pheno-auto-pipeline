@@ -1,0 +1,17 @@
+name: smoke test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # BeLink (torch) is not needed: the test uses a stub linker and a stub LLM server
+      - run: pip install --no-deps -e . && pip install pytest
+      - run: pheno-auto help
+      - run: pytest -q

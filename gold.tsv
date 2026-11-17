@@ -1,0 +1,7 @@
+pmid	phenopacket_id	patient_id	sex	hpo_id	hpo_label	status
+99999999	PMID_99999999_Boy	Boy	MALE	HP:0000121	Nephrocalcinosis	observed
+99999999	PMID_99999999_Boy	Boy	MALE	HP:0008341	Distal renal tubular acidosis	observed
+99999999	PMID_99999999_Boy	Boy	MALE	HP:0000103	Polyuria	excluded
+99999999	PMID_99999999_Sister	Sister	FEMALE	HP:0000121	Nephrocalcinosis	observed
+99999999	PMID_99999999_Sister	Sister	FEMALE	HP:0000083	Renal insufficiency	observed
+99999999	PMID_99999999_Sister	Sister	FEMALE	HP:0000103	Polyuria	observed
