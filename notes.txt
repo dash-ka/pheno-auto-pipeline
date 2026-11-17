@@ -119,8 +119,8 @@ pheno-auto extract-text --sections $S --hpo $H/hp.obo --out $O/text \
 
 # 2. tables
 pheno-auto extract-tables --sections $S --hpo $H/hp.obo --out $O/tables \
-    --model gpt-oss-120b --base-url $URL --pmids $S/pmids50.txt --workers 4 --temperature 0 \
-    --max-tokens 32768 2>&1 | tee $O/2_tables.log
+       --model gpt-oss-120b --base-url $URL --pmids $S/pmids50.txt --workers 4 --temperature 0 \
+       --max-tokens 32768 --max-chars 4000 2>&1 | tee $O/2_tables.log
 
 # 3. text + tables
 pheno-auto concat $O/text/predictions.tsv $O/tables/predictions.tsv $O/both/predictions.tsv \
