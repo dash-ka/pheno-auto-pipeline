@@ -1,8 +1,42 @@
-# INSTALLS
-python3 -m venv ~/envs/pheno-auto
-source ~/envs/pheno-auto/bin/activate
+I’ve rebuilt the package down to the six steps you asked for, plus commands that set up HPO and the vLLM environment. It’s 20 files, sent in four groups; MANIFEST.md gives each file’s path in the repository. If you already uploaded files from my earlier version, delete them first: the scripts/ folder, experiments/, tools/ and envs/.
+
+I tested it here on a small synthetic paper with a stand-in LLM server and a stand-in for BeLink. The full pheno-auto run worked, and a rerun reused every saved answer. Installing from the package resolves all dependencies, and prepare-hpo downloaded the latest hp.obo. I couldn’t run the real BeLink models, build the index, or install and serve vLLM here (no GPU), so those parts will first run for real on your server.
+
+What changed in your scripts
+
+New names:
+Before	Now
+03f_extract_findings.py	extract_findings.py
+03t_extract_table_findings.py	extract_table_findings.py
+03b_relink_table.py	relink.py
+belink_linker_table.py	belink_linker.py
+03d_llm_merge_patients.py	merge_patients.py
+concat_predictions.py	unchanged
+make_review_zip.py	unchanged
+Other edits: the file names inside the help texts are updated, and review-zip now works without a gold file. The extraction, linking and merging logic is untouched.
+
+Do these in order. Steps 1 and 2 must happen while you still have the old server; you can do step 3 at the same time.
+
+1. Back up the data from the old server. On the old server, inside ~/belink-test:
+
+bash
+cd ~/belink-test
+mkdir -p ~/backup
+tar -czf ~/backup/sections50.tar.gz -C phenopacket-auto/work sections50   # your input folder (includes pmids50.txt, gold50.tsv)
+cp BeLink-HPO/hp.obo ~/backup/                                            # the HPO version of run50
+tar -czf ~/backup/belink_index.tar.gz -C BeLink-HPO index                 # the BeLink index built from it
+tar -czf ~/backup/run50.tar.gz run50                                      # all results and model answers
+cp requirements-*.txt ~/backup/
+~/vllm-env/bin/pip freeze > ~/backup/vllm-freeze.txt
+bin/pip freeze > ~/backup/belink-freeze.txt
+ls -lh ~/backup
+
+2. Copy the backup to the new server. Use the same rsync method as before, e.g. rsync -a --partial ~/backup/ newuser@new-server:~/backup/, through the tunnel if needed. Also keep a copy somewhere safe and private, not on GitHub.
+
+# 3. INSTALLS
+python3 -m venv ~/envs/pheno-auto && source ~/envs/pheno-auto/bin/activate
 pip install --upgrade pip
-pip install "git+https://github.com/Dash00/pheno-auto-pipeline.git"
+pip install "git+https://github.com/dash-ka/pheno-auto-pipeline.git"
 pheno-auto help                              # lists the commands: the install worked
 pheno-auto vllm-install --env ~/envs/vllm    # the vLLM environment; takes a while
 
@@ -15,11 +49,12 @@ cp ~/backup/hp.obo ~/hpo/
 tar -xzf ~/backup/belink_index.tar.gz -C ~/hpo    # gives ~/hpo/index
 ls ~/data/sections50/index.tsv ~/hpo/hp.obo ~/hpo/index
 
+
+# VLLM start
 One thing in what you ran: you activated pheno-auto right before vllm serve, but vLLM is installed in ~/vllm-env, not in pheno-auto. Run the server from the vLLM environment, in either of these two ways:
 
 Directly (as you did before):
 
-bash
 tmux new -s vllm
 source ~/vllm-env/bin/activate
 CUDA_VISIBLE_DEVICES=0 vllm serve openai/gpt-oss-120b --served-model-name gpt-oss-120b \
@@ -42,6 +77,8 @@ To check the server first: curl http://localhost:8001/v1/models should list gpt-
 
 These are the run50 server settings (32k context, answers capped at 16,384 tokens), which keeps new results comparable with run50. For long tables you could later try --max-model-len 65536 without the --override-generation-config line.
   
+
+# RUN PIPELINE
 
 A. Check the inputs (once)
 source ~/envs/pheno-auto/bin/activate
