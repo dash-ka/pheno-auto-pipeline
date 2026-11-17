@@ -1,0 +1,24 @@
+# The versions of the packages BeLink used in run50 (from the belink-test environment, pip freeze).
+# Only what the pipeline needs: the extraction, merging and review steps use the standard library;
+# relink (BeLink) needs these. Install torch first, built for the server's CUDA (see README):
+#   pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu128   (run50 used 2.8.0+cu128)
+# then this file, then the package with --no-deps.
+
+belink-hpo @ git+https://github.com/dash-ka/BeLink-HPO.git@af084c7a232f02ecc3f29531d120af0b183327cf
+torch==2.8.0
+transformers==5.17.0
+tokenizers==0.23.3
+safetensors==0.8.0
+huggingface_hub==1.33.0
+hf-xet==1.7.0
+peft==0.21.2
+accelerate==1.15.0
+numpy==2.2.6
+tqdm==4.70.1
+regex==2026.9.29
+PyYAML==6.0.3
+packaging==26.3
+psutil==7.2.2
+filelock==3.32.3
+fsspec==2026.7.0
+requests==2.34.2
