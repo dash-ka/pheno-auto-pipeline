@@ -11,11 +11,14 @@ requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [{ name = "Darya Shlyk" }]
 dependencies = [
-    # BeLink: SapBERT retrieval + Qwen3-4B LoRA re-ranker (brings torch, transformers, peft, accelerate)
-    "belink-hpo @ git+https://github.com/dash-ka/BeLink-HPO.git",
+    # BeLink: SapBERT retrieval + Qwen3-4B LoRA re-ranker (brings torch, transformers, peft, accelerate);
+    # the commit of run50. Exact versions of run50: requirements/belink-run50.txt
+    "belink-hpo @ git+https://github.com/dash-ka/BeLink-HPO.git@af084c7a232f02ecc3f29531d120af0b183327cf",
 ]
 
 [project.optional-dependencies]
+# prepare-sections: supplementary .xlsx / .xls / .pdf files (.doc/.rtf also need LibreOffice's soffice)
+sections = ["openpyxl", "xlrd", "pdfplumber"]
 test = ["pytest"]
 
 [project.scripts]
