@@ -140,3 +140,19 @@ pheno-auto merge --pred $O/both/predictions_belink.tsv --out $O/both/predictions
 pheno-auto review-zip --pred $O/both/predictions_merged_llm.tsv \
     --candidates $O/both/predictions_belink.candidates.jsonl \
     --gold $S/gold50.tsv --sections $S --out $O/review.zip 2>&1 | tee $O/6_review.log
+
+
+# OLD Commands on server
+
+dasha@topone:~/belink-test$ python 03f_extract_findings.py      --sections phenopacket-auto/work/sections50     --hpo BeLink-HPO/hp.obo --out run50/text   --model gpt-oss-120b    --base-url http://localhost:8000/v1     --pmids phenopacket-auto/work/sections50/pmids50.txt    --workers 4     --temperature 0
+
+dasha@topone:~/belink-test$ python 03t_extract_table_findings.py --sections phenopacket-auto/work/sections50 --hpo BeLink-HPO/hp.obo --out run50/tables --model gpt-oss-120b --base-url http://localhost:8000/v1 --pmids phenopacket-auto/work/sections50/pmids50.txt --workers 4 --temperature 0 --max-tokens 32768 --max-chars 4000
+
+python concat_predictions.py run50/text/predictions.tsv run50/tables/predictions.tsv run50/both/predictions.tsv
+
+
+dasha@topone:~/belink-test$ BELINK_INDEX=BeLink-HPO/index BELINK_LOG=run50/both/predictions_belink.candidates.jsonl python 03b_relink_table.py --pred run50/both/predictions.tsv --linker belink_linker_table.py --mode all --term-mention-kinds table,suppl_table --out  run50/both/predictions_belink.tsv
+
+dasha@topone:~/belink-test$ python 03d_llm_merge_patients.py --pred run50/both/predictions_belink.tsv --out run50/both/predictions_merged_llm.tsv --model gpt-oss-120b --base-url http://localhost:8000/v1
+
+dasha@topone:~/belink-test$ python make_review_zip.py --pred run50/both/predictions_merged_llm.tsv --candidates run50/both/predictions_belink.candidates.jsonl --gold phenopacket-auto/work/sections50/gold50.tsv --sections phenopacket-auto/work/sections50 --out run50/review.zip
